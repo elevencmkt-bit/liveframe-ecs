@@ -1,4 +1,7 @@
-"""Publishing backends for the live gallery (V1 = a shared Google Drive folder).
+"""Publishing backends for the live gallery.
+
+- hub:    the client's photo gallery in the ECS Hub (V2 default, see hub.py).
+V1 backends, kept as fallback (a shared Google Drive folder):
 
 - folder: copy into a local folder synced by Google Drive for desktop.
           Drive for desktop keeps its own offline queue.
@@ -21,7 +24,13 @@ class PublishError(RuntimeError):
 
 
 def publish(file: Path, event: Event) -> None:
-    if event.publish_backend == "folder":
+    if event.publish_backend == "hub":
+        from . import hub
+        try:
+            hub.upload_photo(event, file)
+        except hub.HubError as exc:
+            raise PublishError(str(exc)) from exc
+    elif event.publish_backend == "folder":
         _to_folder(file, Path(event.publish_target).expanduser())
     elif event.publish_backend == "rclone":
         _to_rclone(file, event.publish_target)

@@ -1,4 +1,26 @@
-# LiveFrame ECS · V1 (piloto em casa)
+# LiveFrame ECS
+
+## V2 · app no Mac (padrão)
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m liveframe app        # abre http://127.0.0.1:8711
+```
+
+1. **Uma vez:** colocar LUTs (.cube), PNGs de assinatura e trilhas licenciadas em `~/LiveFrame/assets`. Em Settings → *Show camera FTP settings*, copiar servidor/porta/usuário/senha para a A7 IV (FTP Transfer, modo passivo, envio automático). A senha é gerada pelo app e fica no Keychain.
+2. **No Hub:** criar a galeria do cliente (Galleries), publicar, e em *LiveFrame* clicar *Create LiveFrame key* (mostrada uma vez).
+3. **No app:** *New event* → nome, cliente, LUT, assinatura, tamanho, WhatsApp do cliente e a chave da galeria (vai para o Keychain, nunca para arquivo). Eventos anteriores servem de preset.
+4. **▶ Play:** a câmera loga no FTP → "Camera connected". Cada foto chega tratada em *To review*. Aprovar/descartar com clique ou teclado (`A` / `R`, `←` `→`). Aprovadas vão para a galeria do Hub; sem internet ficam na fila e saem quando ela volta (sem duplicar: o Hub ignora nome repetido).
+5. **Send gallery link** no início, **Notify client** (+N, link wa.me preenchido; o Levi toca em enviar; o botão acende quando passa 1 h com fotos novas), **Build recap** com a trilha escolhida, **Close event** no fim (a fila ainda esvazia).
+
+- Um evento ao vivo por vez. Pausado: as fotos esperam em `~/LiveFrame/inbox`.
+- Cabo (fallback): Settings → *Tether folder* (pasta onde o Imaging Edge salva).
+- Drive (fallback da V1): no evento, Gallery = *Drive folder*.
+- A tela só responde em 127.0.0.1; o FTP escuta na rede do travel router (porta 2121, passivas 60000–60099).
+
+---
+
+# LiveFrame ECS · V1 (motor / linha de comando)
 
 Sistema por trás da Booth Session: **câmera → tratamento automático (LUT + assinatura do evento) → galeria ao vivo (Google Drive) → aviso de hora em hora no WhatsApp → reel de recap**.
 
@@ -69,7 +91,7 @@ Pega os clipes de `video/`, corta no ritmo (padrão 4 batidas por corte), aplica
 
 ```bash
 .venv/bin/python -m liveframe samples samples/        # LUT, PNG de moldura/logo e trilha de exemplo
-.venv/bin/python -m unittest discover -s tests -v     # 20 testes: LUT, pipeline, fila offline, curadoria/verificação, aviso, recap
+.venv/bin/python -m unittest discover -s tests -v     # 33 testes: V1 + app V2 (eventos, FTP, revisão, galeria do Hub, fila offline)
 ```
 
 ## Pendências para o piloto

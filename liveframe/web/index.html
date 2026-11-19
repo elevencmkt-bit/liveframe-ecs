@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiveFrame ECS</title>
+<style>
+  :root {
+    --bg: #0b0d10; --panel: #13161b; --panel-2: #1a1e25; --line: #262b33; --ink: #f2f2ef; --soft: #b9bcc2; --muted: #7d828b;
+    --yellow: #ffd23f; --green: #4ade80; --red: #fb7185; --amber: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: var(--yellow); }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  .brand { font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+  .brand b { color: var(--yellow); }
+  nav { display: flex; gap: 4px; margin-left: 12px; }
+  nav button { background: none; border: 0; padding: 6px 12px; border-radius: 8px; color: var(--soft); cursor: pointer; }
+  nav button.on { background: var(--panel-2); color: var(--ink); }
+  .pills { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 12.5px; color: var(--soft); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); } .dot.bad { background: var(--red); } .dot.warn { background: var(--amber); }
+  main { padding: 20px; max-width: 1500px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0; } h2 { font-size: 15px; margin: 0 0 12px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: #3a404a; } .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--yellow); color: #111; border-color: var(--yellow); font-weight: 600; }
+  .btn.green { background: #14532d; border-color: #166534; } .btn.red { background: #4c0519; border-color: #881337; }
+  .btn.hot { box-shadow: 0 0 0 2px var(--amber); }
+  .muted { color: var(--muted); } .soft { color: var(--soft); } .small { font-size: 12.5px; }
+  .chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--soft); text-transform: uppercase; letter-spacing: .04em; }
+  .chip.live { background: #14532d; color: #bbf7d0; } .chip.paused { background: #422006; color: #fde68a; } .chip.closed { background: #1f2937; color: #9ca3af; }
+  .events { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 16px; }
+  .event { cursor: pointer; } .event:hover { border-color: #3a404a; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+  .stat { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 20px; } .stat span { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  form.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  label span { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  input[type=text], input[type=password], input[type=number], select { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  input:focus, select:focus { outline: none; border-color: var(--yellow); }
+  .full { grid-column: 1 / -1; }
+  .err { color: var(--red); } .ok { color: var(--green); }
+  .live-top { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .live-top .stats { grid-template-columns: repeat(5, minmax(84px, 1fr)); margin: 0; flex: 1; min-width: 420px; }
+  .tabs { display: flex; gap: 4px; margin: 18px 0 10px; align-items: center; }
+  .tabs button { background: none; border: 0; padding: 6px 12px; border-radius: 8px; color: var(--soft); cursor: pointer; }
+  .tabs button.on { background: var(--panel-2); color: var(--ink); }
+  .work { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 16px; align-items: start; }
+  .grid-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .ph { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #000; cursor: pointer; outline: 2px solid transparent; }
+  .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ph.sel { outline-color: var(--yellow); }
+  .ph .acts { position: absolute; inset: auto 6px 6px 6px; display: none; gap: 6px; justify-content: center; }
+  .ph:hover .acts, .ph.sel .acts { display: flex; }
+  .ph .acts button { border: 0; border-radius: 999px; width: 34px; height: 34px; cursor: pointer; font-weight: 700; }
+  .ph .acts .a { background: var(--green); color: #052e16; } .ph .acts .r { background: var(--red); color: #4c0519; }
+  .preview { position: sticky; top: 76px; }
+  .preview img { width: 100%; border-radius: 8px; background: #000; display: block; }
+  .keys { font-size: 12px; color: var(--muted); margin-top: 8px; } kbd { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-size: 11.5px; }
+  .empty { padding: 50px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 12px; }
+  .banner { background: #2a2108; border: 1px solid #5b4510; color: #fde68a; border-radius: 10px; padding: 10px 14px; margin-top: 12px; }
+  dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; padding: 20px; width: min(720px, 94vw); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; display: none; z-index: 20; }
+  code { background: var(--panel-2); padding: 1px 6px; border-radius: 4px; }
+  @media (max-width: 1000px) { .work { grid-template-columns: 1fr; } .preview { position: static; } .live-top .stats { min-width: 0; } form.grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>LiveFrame</b> ECS</div>
+  <nav><button id="nav-events" class="on">Events</button><button id="nav-settings">Settings</button></nav>
+  <div class="pills">
+    <span class="pill" id="pill-camera"><i class="dot"></i><span>Camera</span></span>
+    <span class="pill" id="pill-net"><i class="dot"></i><span>Internet</span></span>
+    <span class="pill" id="pill-active"><i class="dot"></i><span>No live event</span></span>
+  </div>
+</header>
+<main id="view"></main>
+<dialog id="dlg"></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const api = async (path, body) => {
+  const r = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'content-type': 'application/json', 'x-liveframe': '1' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `Error ${r.status}`);
+  return j;
+};
+const toast = (t, ms = 2600) => { const el = $('#toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => (el.style.display = 'none'), ms); };
+const ago = (t) => { if (!t) return 'never'; const m = Math.round((Date.now() / 1000 - t) / 60); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ${m % 60} min ago`; };
+
+let S = { route: 'events', slug: null, folder: 'review', photos: [], sel: 0, state: null, ev: null, data: null };
+
+// ── header status ─────────────────────────────────────────────
+async function pollState() {
+  try {
+    const st = S.state = await api('/api/state');
+    const cam = st.camera || {};
+    setPill('#pill-camera', cam.connected ? 'ok' : cam.disabled ? 'bad' : '', cam.connected ? `Camera connected${cam.address ? ' · ' + cam.address : ''}` : cam.disabled ? 'FTP off · use cable' : 'Camera not connected');
+    setPill('#pill-net', st.online ? 'ok' : 'bad', st.online ? 'Internet' : 'Offline · queue waits');
+    setPill('#pill-active', st.active ? 'ok' : '', st.active ? `Live: ${st.active}` : 'No live event');
+  } catch { setPill('#pill-camera', 'bad', 'App stopped'); }
+}
+function setPill(sel, cls, text) { const p = $(sel); p.querySelector('.dot').className = 'dot ' + cls; p.querySelector('span').textContent = text; }
+
+// ── routing ───────────────────────────────────────────────────
+function go(route, slug) { S.route = route; S.slug = slug || null; S.folder = 'review'; S.sel = 0; S.photos = []; location.hash = slug ? `#/${route}/${slug}` : `#/${route}`; render(); }
+$('#nav-events').onclick = () => go('events');
+$('#nav-settings').onclick = () => go('settings');
+function readHash() { const [, r, s] = location.hash.split('/'); if (r) { S.route = r; S.slug = s || null; } }
+
+async function render() {
+  $('#nav-events').classList.toggle('on', S.route !== 'settings');
+  $('#nav-settings').classList.toggle('on', S.route === 'settings');
+  if (S.route === 'settings') return renderSettings();
+  if (S.route === 'event' && S.slug) return renderEvent();
+  return renderEvents();
+}
+
+// ── events list ───────────────────────────────────────────────
+async function renderEvents() {
+  const d = S.data = await api('/api/events');
+  $('#view').innerHTML = `
+    <div class="row"><h1>Events</h1><button class="btn primary" id="new" style="margin-left:auto">+ New event</button></div>
+    ${d.events.length ? `<div class="events">${d.events.map((e) => `
+      <div class="card event" data-slug="${esc(e.slug)}">
+        <div class="row"><b>${esc(e.name)}</b><span class="chip ${esc(e.status)}" style="margin-left:auto">${esc(e.status)}</span></div>
+        <div class="muted small">${esc(e.client || '—')} · ${e.backend === 'hub' ? 'Hub gallery' : 'Drive (fallback)'}${e.created ? ' · ' + new Date(e.created * 1000).toLocaleDateString() : ''}</div>
+        ${e.error ? `<div class="err small">${esc(e.error)}</div>` : `<div class="stats">${stat('Review', e.counters.review)}${stat('Queue', e.counters.queue)}${stat('Sent', e.counters.sent)}${stat('Rejected', e.counters.rejected)}</div>`}
+      </div>`).join('')}</div>` : `<div class="empty" style="margin-top:16px">No events yet. Create one, connect the camera and press play.</div>`}`;
+  $('#new').onclick = () => eventForm();
+  document.querySelectorAll('.event').forEach((el) => (el.onclick = () => go('event', el.dataset.slug)));
+}
+const stat = (k, v, hot) => `<div class="stat" ${hot ? 'style="box-shadow:0 0 0 1px var(--amber)"' : ''}><b>${v ?? 0}</b><span>${k}</span></div>`;
+
+// ── new / edit event ──────────────────────────────────────────
+async function eventForm(ev) {
+  const d = S.data || (S.data = await api('/api/events'));
+  const a = d.assets, p = d.presets;
+  const opt = (list, cur, none) => `${none ? `<option value="">${none}</option>` : ''}${list.map((f) => `<option ${f === cur ? 'selected' : ''}>${esc(f)}</option>`).join('')}`;
+  const v = ev || p[0] || {};
+  const dlg = $('#dlg');
+  dlg.innerHTML = `
+    <h2>${ev ? 'Edit event' : 'New event'}</h2>
+    <form class="grid" id="ef">
+      ${!ev && p.length ? `<label class="full"><span>Start from a past event (look + delivery)</span><select id="preset"><option value="">—</option>${p.map((x, i) => `<option value="${i}" ${i === 0 ? 'selected' : ''}>${esc(x.from)}</option>`).join('')}</select></label>` : ''}
+      <label><span>Event name</span><input type="text" name="name" required value="${esc(ev?.name || '')}" placeholder="Orlando Expo 2027"></label>
+      <label><span>Client</span><input type="text" name="client" value="${esc(ev?.client || '')}" placeholder="Booth / brand"></label>
+      <label><span>LUT (.cube) — approved look</span><select name="lut">${opt(a.lut, v.lut, 'None')}</select></label>
+      <label><span>Output size (long edge)</span><select name="long_edge">${[2048, 2560, 1600].map((n) => `<option ${+v.long_edge === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label><span>Event signature (PNG)</span><select name="signature">${opt(a.signature, v.signature, 'None')}</select></label>
+      <label><span>Signature style</span><select name="signature_mode">${['frame', 'logo', 'none'].map((m) => `<option ${v.signature_mode === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+      <label><span>Signature for vertical photos (optional)</span><select name="signature_portrait">${opt(a.signature, '', 'Same as above')}</select></label>
+      <label><span>Curation</span><select name="curation"><option value="review" ${v.curation !== 'all' ? 'selected' : ''}>Review — I approve each photo</option><option value="all" ${v.curation === 'all' ? 'selected' : ''}>All — publish everything</option></select></label>
+      <label><span>Client WhatsApp (with country code)</span><input type="text" name="client_whatsapp" value="${esc(ev?.client_whatsapp || '')}" placeholder="1 407 555 0123"></label>
+      <label><span>Gallery</span><select name="backend" id="backend"><option value="hub" ${v.backend !== 'folder' ? 'selected' : ''}>Hub gallery (standard)</option><option value="folder" ${v.backend === 'folder' ? 'selected' : ''}>Drive folder (fallback)</option></select></label>
+      <label class="full hubf"><span>Hub gallery LiveFrame key ${ev?.hub_key ? '(saved in Keychain — paste only to replace)' : ''}</span><input type="password" name="hub_key" autocomplete="off" placeholder="lf_… (Hub → Galleries → the gallery → LiveFrame → Create key)"></label>
+      <label class="full drivef"><span>Drive for desktop folder</span><input type="text" name="target" placeholder="~/Library/CloudStorage/GoogleDrive-…/My Drive/LiveFrame/Event"></label>
+      <label class="full drivef"><span>Gallery link to send the client</span><input type="text" name="gallery_link" value="${esc(ev?.backend === 'folder' ? ev.gallery_link : '')}" placeholder="https://drive.google.com/drive/folders/…"></label>
+      <p class="full muted small">Files go in <code>~/LiveFrame/assets</code> (LUTs, PNGs, tracks). The key is stored in the Mac's Keychain, never in a file.</p>
+      <div class="full row"><span class="err" id="ferr"></span><button type="button" class="btn" id="cancel" style="margin-left:auto">Cancel</button><button class="btn primary">${ev ? 'Save' : 'Create event'}</button></div>
+    </form>`;
+  const f = $('#ef', dlg);
+  const sync = () => { const hubOn = f.backend.value === 'hub'; dlg.querySelectorAll('.hubf').forEach((x) => (x.style.display = hubOn ? '' : 'none')); dlg.querySelectorAll('.drivef').forEach((x) => (x.style.display = hubOn ? 'none' : '')); };
+  f.backend.onchange = sync; sync();
+  $('#preset', dlg)?.addEventListener('change', (e) => { const x = p[e.target.value]; if (!x) return; for (const k of ['lut', 'signature', 'signature_mode', 'long_edge', 'curation', 'backend']) if (f[k] && x[k] != null) f[k].value = x[k]; sync(); });
+  $('#cancel', dlg).onclick = () => dlg.close();
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(f));
+    try {
+      const r = await api(ev ? `/api/events/${ev.slug}/edit` : '/api/events', body);
+      dlg.close(); S.data = null; toast(ev ? 'Saved' : 'Event created'); go('event', r.slug);
+    } catch (er) { $('#ferr', dlg).textContent = er.message; }
+  };
+  dlg.showModal();
+}
+
+// ── live screen ───────────────────────────────────────────────
+async function renderEvent() {
+  let ev;
+  try { ev = S.ev = await api(`/api/events/${S.slug}`); } catch (e) { $('#view').innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  const music = (S.data || (S.data = await api('/api/events'))).assets.music;
+  $('#view').innerHTML = `
+    <div class="row"><a href="#" id="back" class="muted">← Events</a></div>
+    <div class="row" style="margin-top:6px"><h1>${esc(ev.name)}</h1><span class="chip ${esc(ev.status)}" id="chip">${esc(ev.status)}</span>
+      <span class="muted">${esc(ev.client || '')}</span>
+      <div class="row" style="margin-left:auto">
+        <button class="btn" id="edit">Edit</button>
+        <button class="btn primary" id="play"></button>
+        <button class="btn" id="close">Close event</button>
+      </div>
+    </div>
+    <div class="live-top" style="margin-top:14px">
+      <div class="stats" id="stats"></div>
+      <div class="card" style="min-width:320px;flex:1">
+        <div class="small muted">Client gallery ${ev.backend === 'hub' ? '(Hub)' : '(Drive fallback)'}</div>
+        <div id="glink" class="small" style="word-break:break-all;margin:4px 0 10px"></div>
+        <div class="row">
+          <button class="btn" id="start-msg">Send gallery link</button>
+          <button class="btn" id="notify">Notify client</button>
+          <button class="btn" id="recap-btn">Build recap</button>
+        </div>
+        <div id="qinfo" class="small muted" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div id="banner"></div>
+    <div class="tabs">
+      ${['review', 'sent', 'rejected'].map((f) => `<button data-f="${f}" class="${S.folder === f ? 'on' : ''}">${f === 'review' ? 'To review' : f === 'sent' ? 'In gallery' : 'Rejected'}</button>`).join('')}
+      <span style="margin-left:auto" class="row"><button class="btn" id="approve-all" title="Approve every photo waiting for review">Approve all</button></span>
+    </div>
+    <div class="work"><div id="grid"></div><div class="card preview" id="preview"></div></div>`;
+  $('#back').onclick = (e) => { e.preventDefault(); go('events'); };
+  $('#edit').onclick = () => eventForm(ev);
+  $('#play').onclick = async () => { const a = S.ev.status === 'live' ? 'pause' : 'play'; await act(`/api/events/${S.slug}/${a}`, {}); refreshEvent(); };
+  $('#close').onclick = async () => { if (!confirm('Close this event? The camera stops feeding it. Anything in the queue still goes to the gallery.')) return; await act(`/api/events/${S.slug}/close`, {}); refreshEvent(); };
+  $('#start-msg').onclick = () => sendMsg('start');
+  $('#notify').onclick = () => sendMsg('update');
+  $('#recap-btn').onclick = () => recapDialog(music);
+  $('#approve-all').onclick = async () => { const names = S.photos.map((p) => p.name); if (!names.length || !confirm(`Approve all ${names.length} photos?`)) return; await decide(names, 'approve'); };
+  document.querySelectorAll('.tabs [data-f]').forEach((b) => (b.onclick = () => { S.folder = b.dataset.f; S.sel = 0; renderEvent(); }));
+  paintEvent(); loadPhotos(true);
+}
+
+function paintEvent() {
+  const ev = S.ev, c = ev.counters || {};
+  $('#chip').textContent = ev.status; $('#chip').className = `chip ${ev.status}`;
+  const p = $('#play'); p.textContent = ev.status === 'live' ? '❚❚ Pause' : '▶ Play'; p.disabled = ev.status === 'closed';
+  $('#close').disabled = ev.status === 'closed';
+  $('#stats').innerHTML = stat('To review', c.review, c.review > 0) + stat('Queue', c.queue) + stat('Sent', c.sent) + stat('Rejected', c.rejected) + stat('Videos', c.videos);
+  $('#glink').innerHTML = ev.gallery_link ? `<a href="${esc(ev.gallery_link)}" target="_blank">${esc(ev.gallery_link)}</a>` : `<span class="muted">Waiting for the Hub (key + internet)…</span> <a href="#" id="gcheck">Check now</a>`;
+  $('#gcheck')?.addEventListener('click', async (e) => { e.preventDefault(); const r = await act(`/api/events/${S.slug}/gallery`, {}); if (r?.error) toast(r.error, 5000); refreshEvent(); });
+  const online = S.state?.online;
+  $('#qinfo').textContent = c.queue ? (online ? `${c.queue} going to the gallery…` : `Offline: ${c.queue} waiting in the queue — they go out when the internet is back.`) + (c.retry_error ? ` (${c.retry_error})` : '') : c.sent ? `All approved photos are in the gallery. Last client notice: ${ago(c.last_notice)}.` : '';
+  const due = c.since_notice > 0 && (!c.last_notice || Date.now() / 1000 - c.last_notice > 3600);
+  $('#notify').textContent = c.since_notice ? `Notify client (+${c.since_notice})` : 'Notify client';
+  $('#notify').classList.toggle('hot', due);
+  $('#banner').innerHTML = due ? `<div class="banner">Hourly update: ${c.since_notice} new photo${c.since_notice > 1 ? 's' : ''} since the last notice. Tap “Notify client”.</div>` : '';
+}
+
+async function refreshEvent() { if (S.route !== 'event') return; try { S.ev = await api(`/api/events/${S.slug}`); paintEvent(); } catch {} }
+
+async function loadPhotos(force) {
+  if (S.route !== 'event') return;
+  const { photos } = await api(`/api/events/${S.slug}/photos?folder=${S.folder}`);
+  const same = !force && photos.length === S.photos.length && photos.every((p, i) => p.name === S.photos[i].name);
+  if (same) return;
+  const cur = S.photos[S.sel]?.name;
+  S.photos = photos;
+  const keep = photos.findIndex((p) => p.name === cur);
+  S.sel = keep >= 0 ? keep : Math.min(S.sel, Math.max(0, photos.length - 1));
+  paintGrid();
+}
+
+function paintGrid() {
+  const g = $('#grid'); if (!g) return;
+  $('#approve-all').style.display = S.folder === 'review' && S.photos.length ? '' : 'none';
+  if (!S.photos.length) {
+    g.innerHTML = `<div class="empty">${S.folder === 'review' ? (S.ev.status === 'live' ? 'Waiting for photos from the camera…' : 'Press ▶ Play to start receiving photos.') : 'Nothing here yet.'}</div>`;
+    $('#preview').innerHTML = `<p class="muted small">Select a photo to see it large.</p>${keysHelp()}`; return;
+  }
+  const acts = S.folder === 'review' ? `<button class="a" title="Approve (A)">✓</button><button class="r" title="Reject (R)">✕</button>` : S.folder === 'rejected' ? `<button class="a" title="Approve after all (A)">✓</button>` : '';
+  g.innerHTML = `<div class="grid-photos">${S.photos.map((p, i) => `<div class="ph ${i === S.sel ? 'sel' : ''}" data-i="${i}"><img loading="lazy" src="/thumb/${S.slug}/${encodeURIComponent(p.name)}?s=360" alt=""><div class="acts">${acts}</div></div>`).join('')}</div>`;
+  g.querySelectorAll('.ph').forEach((el) => {
+    const i = +el.dataset.i;
+    el.onclick = (e) => {
+      if (e.target.classList.contains('a')) return decide([S.photos[i].name], 'approve');
+      if (e.target.classList.contains('r')) return decide([S.photos[i].name], 'reject');
+      S.sel = i; paintGrid();
+    };
+  });
+  paintPreview();
+}
+
+const keysHelp = () => `<div class="keys"><kbd>←</kbd> <kbd>→</kbd> move · <kbd>A</kbd> approve · <kbd>R</kbd> reject</div>`;
+function paintPreview() {
+  const p = S.photos[S.sel]; if (!p) return;
+  const btns = S.folder === 'review' ? `<button class="btn green" id="pa">✓ Approve</button><button class="btn red" id="pr">✕ Reject</button>` : S.folder === 'rejected' ? `<button class="btn green" id="pa">✓ Approve after all</button>` : '';
+  $('#preview').innerHTML = `<img src="/thumb/${S.slug}/${encodeURIComponent(p.name)}?s=1200" alt=""><div class="row" style="margin-top:10px"><span class="small soft">${esc(p.name)}</span><span style="margin-left:auto" class="row">${btns}</span></div>${S.folder !== 'sent' ? keysHelp() : ''}`;
+  $('#pa')?.addEventListener('click', () => decide([p.name], 'approve'));
+  $('#pr')?.addEventListener('click', () => decide([p.name], 'reject'));
+  document.querySelector('.ph.sel')?.scrollIntoView({ block: 'nearest' });
+}
+
+async function decide(names, decision) {
+  try {
+    const r = await api(`/api/events/${S.slug}/decide`, { names, decision });
+    const gone = new Set(r.moved);
+    S.photos = S.photos.filter((p) => !gone.has(p.name));
+    S.sel = Math.min(S.sel, Math.max(0, S.photos.length - 1));
+    S.ev.counters = r.counters; paintEvent(); paintGrid();
+  } catch (e) { toast(e.message, 4000); }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (S.route !== 'event' || $('#dlg').open || /input|select|textarea/i.test(e.target.tagName)) return;
+  if (e.key === 'ArrowRight' && S.sel < S.photos.length - 1) { S.sel++; paintGrid(); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft' && S.sel > 0) { S.sel--; paintGrid(); e.preventDefault(); }
+  else if ((e.key === 'a' || e.key === 'A') && S.photos[S.sel] && S.folder !== 'sent') decide([S.photos[S.sel].name], 'approve');
+  else if ((e.key === 'r' || e.key === 'R' || e.key === 'x' || e.key === 'X') && S.photos[S.sel] && S.folder === 'review') decide([S.photos[S.sel].name], 'reject');
+});
+
+async function act(path, body) { try { return await api(path, body); } catch (e) { toast(e.message, 5000); return null; } }
+
+async function sendMsg(kind) {
+  const r = await act(`/api/events/${S.slug}/notify`, { kind });
+  if (!r) return;
+  if (!r.wa_link) { toast('No new photos in the gallery since the last notice.'); return; }
+  const dlg = $('#dlg');
+  dlg.innerHTML = `<h2>${kind === 'start' ? 'Send the gallery link' : `Notify client · +${r.count}`}</h2>
+    <p class="soft" style="white-space:pre-wrap">${esc(r.message)}</p>
+    <p class="muted small">WhatsApp opens with this text filled in. Nothing is sent until you tap send there.</p>
+    <div class="row"><button class="btn" id="x" style="margin-left:auto">Close</button><a class="btn primary" href="${esc(r.wa_link)}" target="_blank" id="wa">Open WhatsApp</a></div>`;
+  $('#x', dlg).onclick = () => dlg.close();
+  $('#wa', dlg).onclick = () => setTimeout(() => dlg.close(), 300);
+  dlg.showModal(); refreshEvent();
+}
+
+function recapDialog(music) {
+  const job = S.state?.recaps?.[S.slug];
+  const dlg = $('#dlg');
+  dlg.innerHTML = `<h2>Recap reel (30–60 s, 9:16)</h2>
+    <p class="muted small">Uses the clips the camera sent (${S.ev.counters?.videos ?? 0}), the event LUT and signature, cut on the beat. You approve it before it goes anywhere.</p>
+    ${job ? `<p class="${job.state === 'error' ? 'err' : 'soft'}">Last recap: ${esc(job.state)}${job.error ? ' — ' + esc(job.error) : ''} ${job.state === 'done' ? `· <a href="/recap/${S.slug}" target="_blank">watch</a>` : ''}</p>` : ''}
+    <form class="grid" id="rf">
+      <label class="full"><span>Licensed track (from ~/LiveFrame/assets)</span><select name="music"><option value="">No music (test)</option>${music.map((m) => `<option>${esc(m)}</option>`).join('')}</select></label>
+      <label><span>BPM</span><input type="number" name="bpm" value="120" min="60" max="200"></label>
+      <label><span>Length (s)</span><input type="number" name="duration" value="45" min="30" max="60"></label>
+      <div class="full row"><button type="button" class="btn" id="x" style="margin-left:auto">Close</button><button class="btn primary">Build recap</button></div>
+    </form>`;
+  $('#x', dlg).onclick = () => dlg.close();
+  $('#rf', dlg).onsubmit = async (e) => { e.preventDefault(); const r = await act(`/api/events/${S.slug}/recap`, Object.fromEntries(new FormData(e.target))); if (r) { toast('Building the recap… it shows here when ready.', 4000); dlg.close(); } };
+  dlg.showModal();
+}
+
+// ── settings ──────────────────────────────────────────────────
+async function renderSettings() {
+  const st = S.state || await api('/api/state');
+  const s = st.settings;
+  $('#view').innerHTML = `
+    <h1>Settings</h1>
+    <div class="card" style="margin-top:16px;max-width:760px">
+      <h2>Camera (one-time setup)</h2>
+      <p class="soft small">Sony A7 IV → Network → FTP Transfer: server = this Mac's address on the travel router, port below, passive mode on, auto transfer on. After that, nothing to set per event.</p>
+      <button class="btn" id="show-ftp">Show camera FTP settings</button>
+      <div id="ftp" style="margin-top:10px"></div>
+      <p class="muted small">Cable fallback: point Imaging Edge (or any tether app) to the tether folder below; the app takes the files from there.</p>
+    </div>
+    <form class="card grid" id="sf" style="margin-top:16px;max-width:760px">
+      <label class="full"><span>Hub address</span><input type="text" name="hub_url" value="${esc(s.hub_url)}"></label>
+      <label class="full"><span>Tether folder (cable fallback, optional)</span><input type="text" name="tether_folder" value="${esc(s.tether_folder)}" placeholder="~/Pictures/Tether"></label>
+      <div class="full row"><span id="sok" class="ok small"></span><button class="btn primary" style="margin-left:auto">Save</button></div>
+    </form>`;
+  $('#show-ftp').onclick = async () => {
+    const f = await api('/api/camera-setup');
+    $('#ftp').innerHTML = `<table class="small"><tr><td class="muted">Server</td><td>${f.addresses.map(esc).join(' or ') || '(connect to the travel router)'}</td></tr><tr><td class="muted">Port</td><td>${f.port ?? 'FTP off'}</td></tr><tr><td class="muted">User</td><td>${esc(f.user)}</td></tr><tr><td class="muted">Password</td><td><code>${esc(f.password)}</code></td></tr><tr><td class="muted">Passive mode</td><td>On</td></tr><tr><td class="muted">Folder</td><td>/ (root)</td></tr></table>`;
+  };
+  $('#sf').onsubmit = async (e) => { e.preventDefault(); await act('/api/settings', Object.fromEntries(new FormData(e.target))); $('#sok').textContent = 'Saved ✓'; };
+}
+
+// ── loops ─────────────────────────────────────────────────────
+readHash(); render(); pollState();
+setInterval(pollState, 3000);
+setInterval(() => { if (S.route === 'event') { refreshEvent(); loadPhotos(); } }, 2000);
+window.addEventListener('hashchange', () => { const before = S.route + S.slug; readHash(); if (before !== S.route + S.slug) render(); });
+</script>
+</body>
+</html>

@@ -8,7 +8,8 @@ from pathlib import Path
 
 CURATION_MODES = ("review", "all", "flagged")
 SIGNATURE_MODES = ("frame", "logo", "none")
-PUBLISH_BACKENDS = ("folder", "rclone")
+PUBLISH_BACKENDS = ("hub", "folder", "rclone")
+DEFAULT_HUB_URL = "https://hub.elevencreativestudio.com"
 
 
 class ConfigError(ValueError):
@@ -31,8 +32,11 @@ class Event:
     jpeg_quality: int = 90
     curation: str = "review"        # review (Levi approves each photo) | all | flagged (in-camera rating)
     min_rating: int = 1
-    publish_backend: str = "folder"
+    client: str = ""
+    publish_backend: str = "folder"  # hub (Hub gallery, V2) | folder / rclone (Drive, V1 fallback)
     publish_target: str = ""        # folder path (Drive for desktop) or rclone remote:path
+    hub_url: str = DEFAULT_HUB_URL
+    hub_key_ref: str = ""           # name of the gallery key in the Keychain (never the key itself)
     gallery_link: str = ""
     client_whatsapp: str = ""       # digits only, with country code, e.g. 14075550123
     notice_template: str = "📸 +{n} new photos from {event} are live in your gallery: {link}"
@@ -107,9 +111,12 @@ def load_event(config_file: str | Path) -> Event:
         long_edge=int(tr.get("long_edge", 2048)),
         jpeg_quality=int(tr.get("jpeg_quality", 90)),
         curation=ev.get("curation", "review"),
+        client=str(ev.get("client", "")),
         min_rating=int(ev.get("min_rating", 1)),
         publish_backend=pub.get("backend", "folder"),
         publish_target=str(pub.get("target", "")),
+        hub_url=str(pub.get("hub_url", DEFAULT_HUB_URL)).rstrip("/"),
+        hub_key_ref=str(pub.get("hub_key_ref", "") or slug),
         gallery_link=pub.get("gallery_link", ""),
         client_whatsapp=re.sub(r"\D", "", str(ntf.get("client_whatsapp", ""))),
         notice_template=ntf.get("template", Event.notice_template),
@@ -126,7 +133,10 @@ def validate(e: Event) -> None:
         raise ConfigError(f"signature_mode must be one of {SIGNATURE_MODES}")
     if e.publish_backend not in PUBLISH_BACKENDS:
         raise ConfigError(f"publish.backend must be one of {PUBLISH_BACKENDS}")
-    if not e.publish_target:
+    if e.publish_backend == "hub":
+        if not e.hub_url.startswith(("https://", "http://127.0.0.1", "http://localhost")):
+            raise ConfigError("publish.hub_url must be https")
+    elif not e.publish_target:
         raise ConfigError("publish.target is required")
     if e.logo_corner not in ("top-left", "top-right", "bottom-left", "bottom-right"):
         raise ConfigError("logo_corner must be top-left/top-right/bottom-left/bottom-right")
