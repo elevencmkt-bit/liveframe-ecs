@@ -1,0 +1,30 @@
+# LiveFrame ECS — one file per event. Copy to events/<event>.toml and edit.
+# No passwords or tokens here: Drive access lives in Drive for desktop / rclone.
+
+[event]
+name     = "Sample Expo 2026"
+# slug   = "sample-expo-2026"        # optional; made from the name
+# root   = "~/LiveFrame/sample-expo-2026"  # working folders; default ./work/<slug>
+curation = "all"                     # "all" or "flagged" (rated in camera)
+min_rating = 1                       # used when curation = "flagged"
+
+[treatment]
+lut              = "../samples/sample_warm.cube"   # approved look, same file for video
+signature        = "../samples/sample_frame.png"   # landscape frame (or logo)
+signature_portrait = "../samples/sample_frame_portrait.png"  # optional
+signature_mode   = "frame"           # frame | logo | none
+# logo_width = 0.18                  # logo mode: fraction of image width
+# logo_corner = "bottom-right"
+long_edge    = 2048                  # output size (px, long edge)
+jpeg_quality = 90
+
+[publish]
+backend = "folder"                   # folder (Drive for desktop) | rclone
+target  = "~/Library/CloudStorage/GoogleDrive-<conta>/My Drive/LiveFrame/Sample Expo 2026"
+# backend = "rclone"
+# target  = "ecsdrive:LiveFrame/Sample Expo 2026"
+gallery_link = "https://drive.google.com/drive/folders/<id>"
+
+[notice]
+client_whatsapp = ""                 # digits with country code, e.g. 14075550123
+template = "📸 +{n} new photos from {event} are live in your gallery: {link}"

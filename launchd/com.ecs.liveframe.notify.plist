@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hourly notice. Replace REPO and EVENT, then:
+     cp launchd/com.ecs.liveframe.notify.plist ~/Library/LaunchAgents/
+     launchctl load ~/Library/LaunchAgents/com.ecs.liveframe.notify.plist
+     Remove after the event: launchctl unload ... -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.ecs.liveframe.notify</string>
+  <key>WorkingDirectory</key><string>REPO</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/env</string><string>python3</string>
+    <string>-m</string><string>liveframe</string>
+    <string>notify</string><string>events/EVENT.toml</string><string>--open</string>
+  </array>
+  <key>StartInterval</key><integer>3600</integer>
+  <key>StandardOutPath</key><string>/tmp/liveframe-notify.log</string>
+  <key>StandardErrorPath</key><string>/tmp/liveframe-notify.log</string>
+</dict>
+</plist>
