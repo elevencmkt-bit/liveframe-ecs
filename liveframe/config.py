@@ -6,7 +6,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-CURATION_MODES = ("all", "flagged")
+CURATION_MODES = ("review", "all", "flagged")
 SIGNATURE_MODES = ("frame", "logo", "none")
 PUBLISH_BACKENDS = ("folder", "rclone")
 
@@ -29,7 +29,7 @@ class Event:
     logo_corner: str = "bottom-right"
     long_edge: int = 2048
     jpeg_quality: int = 90
-    curation: str = "all"           # all | flagged (in-camera rating >= min_rating)
+    curation: str = "review"        # review (Levi approves each photo) | all | flagged (in-camera rating)
     min_rating: int = 1
     publish_backend: str = "folder"
     publish_target: str = ""        # folder path (Drive for desktop) or rclone remote:path
@@ -53,6 +53,13 @@ class Event:
     def failed(self) -> Path: return self.root / "failed"
     @property
     def video(self) -> Path: return self.root / "video"
+    # review mode: treated photos wait in review/; Levi drags them to approved/ or rejected/
+    @property
+    def review(self) -> Path: return self.root / "review"
+    @property
+    def approved(self) -> Path: return self.root / "approved"
+    @property
+    def rejected(self) -> Path: return self.root / "rejected"
     @property
     def state_db(self) -> Path: return self.root / "state.sqlite"
 
@@ -60,6 +67,9 @@ class Event:
         for d in (self.incoming, self.originals, self.ready, self.sent,
                   self.skipped, self.failed, self.video):
             d.mkdir(parents=True, exist_ok=True)
+        if self.curation == "review":
+            for d in (self.review, self.approved, self.rejected):
+                d.mkdir(parents=True, exist_ok=True)
 
 
 def _path(base: Path, value: str | None) -> Path | None:
@@ -96,7 +106,7 @@ def load_event(config_file: str | Path) -> Event:
         logo_corner=tr.get("logo_corner", "bottom-right"),
         long_edge=int(tr.get("long_edge", 2048)),
         jpeg_quality=int(tr.get("jpeg_quality", 90)),
-        curation=ev.get("curation", "all"),
+        curation=ev.get("curation", "review"),
         min_rating=int(ev.get("min_rating", 1)),
         publish_backend=pub.get("backend", "folder"),
         publish_target=str(pub.get("target", "")),

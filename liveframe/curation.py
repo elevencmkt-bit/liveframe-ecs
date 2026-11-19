@@ -1,4 +1,7 @@
-"""Curation: publish everything, or only frames rated in camera.
+"""Curation filter at ingest: everything, or only frames rated in camera.
+
+"review" lets every frame through here; the human check happens later
+(review/ → approved/, see pipeline.release).
 
 Rating is read from EXIF tag 0x4746 (Rating) or from the XMP packet
 (xmp:Rating). Which one the camera writes must be confirmed on the real body
@@ -33,6 +36,6 @@ def read_rating(path: Path) -> int:
 
 
 def accept(path: Path, mode: str, min_rating: int = 1) -> bool:
-    if mode == "all":
+    if mode in ("all", "review"):
         return True
     return read_rating(path) >= min_rating

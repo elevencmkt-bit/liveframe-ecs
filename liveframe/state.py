@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS files (
     sha1        TEXT PRIMARY KEY,
     source_name TEXT NOT NULL,
     output_name TEXT,
-    status      TEXT NOT NULL,          -- ready | sent | skipped | failed | video
+    status      TEXT NOT NULL,          -- review | ready | sent | rejected | skipped | failed | video
     error       TEXT,
     attempts    INTEGER NOT NULL DEFAULT 0,
     next_try    REAL NOT NULL DEFAULT 0,
@@ -60,6 +60,15 @@ class Ledger:
         self.conn.execute(
             "INSERT OR REPLACE INTO files(sha1, source_name, output_name, status, error, created_at)"
             " VALUES (?,?,?,?,?,?)", (sha1, source, output, status, error, time.time()))
+
+    def by_output(self, output_name: str):
+        return self.conn.execute(
+            "SELECT sha1, status FROM files WHERE output_name=?", (output_name,)).fetchone()
+
+    def set_status(self, sha1: str, status: str) -> None:
+        # created_at restarts so the upload queue follows the approval order
+        self.conn.execute("UPDATE files SET status=?, created_at=? WHERE sha1=?",
+                          (status, time.time(), sha1))
 
     def due_for_upload(self, now: float | None = None):
         now = time.time() if now is None else now

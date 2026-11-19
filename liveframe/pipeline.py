@@ -1,5 +1,9 @@
 """The live loop: incoming → (curation, treatment) → ready → (publish) → sent.
 
+With curation = "review" (default) treated photos stop in review/ first. Levi
+looks at them and drags each one to approved/ (→ ready → gallery) or to
+rejected/ (never published). `liveframe approve` does the same from the terminal.
+
 Safe to stop and restart at any moment:
 - the treated file is written atomically before the ledger is updated;
 - a camera file already in the ledger is never treated or published again;
@@ -37,6 +41,9 @@ class Stats:
     videos: int = 0
     failed: int = 0
     sent: int = 0
+    to_review: int = 0
+    approved: int = 0
+    rejected: int = 0
     retrying: int = 0
     errors: list[str] = field(default_factory=list)
 
@@ -94,11 +101,14 @@ def ingest(event: Event, ledger: Ledger, stats: Stats, settle: float = 2.0) -> N
                 stats.skipped += 1
                 continue
             out = _output_name(event, ledger, src, sha)
-            treat_photo(src, event.ready / out, event)
-            ledger.add(sha, src.name, out, "ready")
+            status = "review" if event.curation == "review" else "ready"
+            treat_photo(src, getattr(event, status) / out, event)
+            ledger.add(sha, src.name, out, status)
             _move(src, event.originals)
             stats.treated += 1
-            log.info("treated %s -> %s", src.name, out)
+            if status == "review":
+                stats.to_review += 1
+            log.info("treated %s -> %s (%s)", src.name, out, status)
         except (UnidentifiedImageError, OSError, SyntaxError) as exc:
             # Still being written? Give it time before calling it broken.
             if time.time() - src.stat().st_mtime < max(30.0, settle * 10):
@@ -107,6 +117,53 @@ def ingest(event: Event, ledger: Ledger, stats: Stats, settle: float = 2.0) -> N
             _move(src, event.failed)
             stats.failed += 1
             stats.errors.append(f"{src.name}: {exc}")
+
+
+def release(event: Event, ledger: Ledger, stats: Stats) -> None:
+    """Review mode: pick up Levi's decisions from approved/ and rejected/."""
+    if event.curation != "review":
+        return
+    for folder, status in ((event.approved, "ready"), (event.rejected, "rejected")):
+        for f in sorted(folder.iterdir()):
+            if not f.is_file() or f.name.startswith("."):
+                continue
+            row = ledger.by_output(f.name)
+            if row is None:
+                log.warning("%s/%s is not a LiveFrame photo, left alone", folder.name, f.name)
+                continue
+            sha, current = row
+            allowed = ("review", "rejected") if status == "ready" else ("review",)
+            if current not in allowed:
+                if current == status:
+                    continue  # already recorded; the file just stays in rejected/
+                log.warning("%s is already %s, left in %s/", f.name, current, folder.name)
+                continue
+            if status == "ready":
+                os.replace(f, event.ready / f.name)
+                stats.approved += 1
+            else:
+                stats.rejected += 1
+            ledger.set_status(sha, status)
+            log.info("%s %s", "approved" if status == "ready" else "rejected", f.name)
+    # Crashed between the move and the ledger update: file already in ready/.
+    for sha, name in ledger.conn.execute(
+            "SELECT sha1, output_name FROM files WHERE status='review'").fetchall():
+        if (event.ready / name).exists():
+            ledger.set_status(sha, "ready")
+
+
+def approve(event: Event, names: list[str] | None = None) -> int:
+    """Move photos from review/ to approved/ (all of them when names is empty)."""
+    event.ensure_dirs()
+    files = [event.review / n for n in names] if names else sorted(event.review.glob("*.jpg"))
+    moved = 0
+    for f in files:
+        if f.is_file():
+            os.replace(f, event.approved / f.name)
+            moved += 1
+        else:
+            log.warning("not in review/: %s", f.name)
+    return moved
 
 
 def upload(event: Event, ledger: Ledger, stats: Stats) -> None:
@@ -135,6 +192,7 @@ def run_once(event: Event, settle: float = 2.0) -> Stats:
     stats = Stats()
     try:
         ingest(event, ledger, stats, settle)
+        release(event, ledger, stats)
         upload(event, ledger, stats)
     finally:
         ledger.close()
@@ -153,8 +211,9 @@ def run_forever(event: Event, interval: float = 2.0, settle: float = 2.0) -> Non
     log.info("LiveFrame running for '%s' — watching %s", event.name, event.incoming)
     while not stop["flag"]:
         s = run_once(event, settle)
-        if s.treated or s.sent or s.failed:
-            log.info("cycle: treated=%d sent=%d skipped=%d failed=%d retrying=%d",
-                     s.treated, s.sent, s.skipped, s.failed, s.retrying)
+        if s.treated or s.sent or s.failed or s.approved or s.rejected:
+            log.info("cycle: treated=%d to_review=%d approved=%d rejected=%d sent=%d "
+                     "skipped=%d failed=%d retrying=%d", s.treated, s.to_review, s.approved,
+                     s.rejected, s.sent, s.skipped, s.failed, s.retrying)
         time.sleep(interval)
 

@@ -146,6 +146,40 @@ class TestPipeline(Base):
         self.assertEqual((st.treated, st.skipped), (1, 1))
         self.assertTrue((ev.skipped / "plain.jpg").exists())
 
+    def test_review_waits_for_levi_then_publishes(self):
+        ev = self.event(curation='"review"')
+        self.drop(ev, "R1.jpg", seed=1)
+        self.drop(ev, "R2.jpg", seed=2)
+        self.drop(ev, "R3.jpg", seed=3)
+        st = pipeline.run_once(ev, settle=0)
+        self.assertEqual((st.treated, st.to_review, st.sent), (3, 3, 0))
+        self.assertEqual(len(list(self.gallery.iterdir())), 0)  # nothing goes out unchecked
+        # Levi drags one to approved/, one to rejected/, leaves one in review/.
+        os.replace(ev.review / "test-expo_R1.jpg", ev.approved / "test-expo_R1.jpg")
+        os.replace(ev.review / "test-expo_R2.jpg", ev.rejected / "test-expo_R2.jpg")
+        st = pipeline.run_once(ev, settle=0)
+        self.assertEqual((st.approved, st.rejected, st.sent), (1, 1, 1))
+        self.assertEqual([p.name for p in self.gallery.iterdir()], ["test-expo_R1.jpg"])
+        self.assertTrue((ev.rejected / "test-expo_R2.jpg").exists())
+        self.assertTrue((ev.review / "test-expo_R3.jpg").exists())
+        # Restart: nothing is re-counted or re-sent.
+        st = pipeline.run_once(ev, settle=0)
+        self.assertEqual((st.approved, st.rejected, st.sent), (0, 0, 0))
+        self.assertEqual(notify.run(ev).count, 1)  # notice counts only published photos
+        # Changed mind: a rejected photo dragged to approved/ is published.
+        os.replace(ev.rejected / "test-expo_R2.jpg", ev.approved / "test-expo_R2.jpg")
+        self.assertEqual(pipeline.approve(ev), 1)  # approve the rest (R3) from the terminal
+        st = pipeline.run_once(ev, settle=0)
+        self.assertEqual((st.approved, st.sent), (2, 2))
+        self.assertEqual(len(list(self.gallery.iterdir())), 3)
+
+    def test_review_ignores_unknown_file(self):
+        ev = self.event(curation='"review"')
+        (ev.approved / "random.jpg").write_bytes(b"x")
+        st = pipeline.run_once(ev, settle=0)
+        self.assertEqual((st.approved, st.sent), (0, 0))
+        self.assertTrue((ev.approved / "random.jpg").exists())
+
     def test_video_and_raw_routed(self):
         ev = self.event()
         for n in ("C0001.MP4", "DSC0001.ARW"):

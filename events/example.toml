@@ -5,7 +5,9 @@
 name     = "Sample Expo 2026"
 # slug   = "sample-expo-2026"        # optional; made from the name
 # root   = "~/LiveFrame/sample-expo-2026"  # working folders; default ./work/<slug>
-curation = "all"                     # "all" or "flagged" (rated in camera)
+curation = "review"                  # review = Levi approves each photo before the gallery
+                                     # (drag review/ → approved/ or rejected/)
+                                     # "all" = publish everything · "flagged" = rated in camera
 min_rating = 1                       # used when curation = "flagged"
 
 [treatment]

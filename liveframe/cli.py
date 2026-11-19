@@ -3,6 +3,7 @@
   run      events/x.toml           live loop (Ctrl+C stops; restart any time)
   once     events/x.toml           a single cycle (useful for checks)
   status   events/x.toml           counters for the event
+  approve  events/x.toml [names]   review mode: release photos in review/ (all if no names)
   notify   events/x.toml [--open]  hourly notice (run by launchd every hour)
   recap    events/x.toml --music track.m4a [--duration 45 --bpm 120]
   samples  folder/                 sample LUT / PNG / track for testing
@@ -29,6 +30,9 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--interval", type=float, default=2.0)
         p.add_argument("--settle", type=float, default=2.0,
                        help="seconds a file must be untouched before it is processed")
+    p = sub.add_parser("approve")
+    p.add_argument("event")
+    p.add_argument("names", nargs="*", help="file names in review/; none = all of them")
     p = sub.add_parser("notify")
     p.add_argument("event")
     p.add_argument("--open", action="store_true", help="open WhatsApp with the text filled in")
@@ -62,10 +66,14 @@ def main(argv: list[str] | None = None) -> int:
     elif a.cmd == "status":
         event.ensure_dirs()
         led = Ledger(event.state_db)
-        out = {k: led.count(k) for k in ("ready", "sent", "skipped", "failed", "video")}
+        out = {k: led.count(k) for k in ("review", "ready", "sent", "rejected",
+                                         "skipped", "failed", "video")}
         out["incoming_waiting"] = sum(1 for p in event.incoming.rglob("*") if p.is_file())
         led.close()
         print(json.dumps({"event": event.name, **out}, indent=2))
+    elif a.cmd == "approve":
+        n = pipeline.approve(event, a.names)
+        print(f"{n} photo(s) moved to approved/; the running loop publishes them")
     elif a.cmd == "notify":
         n = notify.run(event, open_link=a.open)
         print("no new photos since last notice" if n is None
