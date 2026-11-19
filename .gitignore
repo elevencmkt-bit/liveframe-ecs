@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+work/
+samples/
+events/*.toml
+!events/example.toml
+*.sqlite*
+.DS_Store
