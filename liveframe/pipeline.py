@@ -179,7 +179,9 @@ def upload(event: Event, ledger: Ledger, stats: Stats) -> None:
             ledger.mark_retry(sha, attempts, str(exc))
             stats.retrying += 1
             log.warning("publish failed (%s), will retry: %s", name, exc)
-            continue
+            # Offline or gallery down: stop here instead of waiting on every queued file.
+            # The rest stays due and goes out in order on the next cycle.
+            break
         os.replace(f, event.sent / name)
         ledger.mark_sent(sha)
         stats.sent += 1

@@ -1,5 +1,7 @@
 """Command line: python3 -m liveframe <command> ...
 
+  app                              the LiveFrame app (V2): local screen + camera FTP + live engine
+
   run      events/x.toml           live loop (Ctrl+C stops; restart any time)
   once     events/x.toml           a single cycle (useful for checks)
   status   events/x.toml           counters for the event
@@ -47,6 +49,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dry-run", action="store_true")
     p = sub.add_parser("samples")
     p.add_argument("folder")
+    p = sub.add_parser("app", help="local screen at http://127.0.0.1:8711")
+    p.add_argument("--port", type=int, default=8711)
+    p.add_argument("--ftp-port", type=int)
+    p.add_argument("--no-browser", action="store_true")
     a = ap.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
@@ -55,6 +61,11 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "samples":
         for k, v in samples.make_all(Path(a.folder)).items():
             print(f"{k}: {v}")
+        return 0
+
+    if a.cmd == "app":
+        from . import app
+        app.serve(a.port, a.ftp_port, open_browser=not a.no_browser)
         return 0
 
     event = load_event(a.event)
