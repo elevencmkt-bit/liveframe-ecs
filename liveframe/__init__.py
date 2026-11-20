@@ -1,2 +1,2 @@
-"""LiveFrame ECS — Booth Session live delivery (V1, home pilot)."""
-__version__ = "0.1.0"
+"""LiveFrame ECS — Booth Session live delivery."""
+__version__ = "2.0.0"

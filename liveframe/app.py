@@ -18,6 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from . import __version__
 from .config import ConfigError
 from .ftpserver import FTP_USER, CameraFTP, ftp_password
 from .studio import Studio, StudioError
@@ -171,30 +172,56 @@ def _lan_addresses() -> list[str]:
     return sorted(a for a in out if not a.startswith("127."))
 
 
+class Server:
+    """The running app: screen (HTTP on 127.0.0.1), camera FTP and the live engine."""
+
+    def __init__(self, port: int = 8711, ftp_port: int | None = None, studio: Studio | None = None):
+        self.studio = studio or Studio()
+        self.ftp = None
+        try:
+            self.ftp = CameraFTP(self.studio.inbox, port=ftp_port if ftp_port is not None
+                                 else int(self.studio.settings()["ftp_port"]))
+            self.ftp.start()
+            self.studio.camera = self.ftp.status
+        except Exception as exc:  # e.g. port taken: the app still works with tethering
+            log.error("FTP server not started (%s); camera over cable only", exc)
+            self.ftp = None
+        try:
+            self.httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(self.studio, self.ftp))
+        except OSError:
+            if self.ftp:
+                self.ftp.stop()
+            raise
+        self.studio.start()
+        self.url = f"http://127.0.0.1:{self.httpd.server_address[1]}/"
+        log.info("LiveFrame ECS %s → %s (data: %s)", __version__, self.url, self.studio.home)
+
+    def serve_forever(self) -> None:
+        self.httpd.serve_forever()
+
+    def start_background(self) -> threading.Thread:
+        t = threading.Thread(target=self.httpd.serve_forever, name="liveframe-http", daemon=True)
+        t.start()
+        return t
+
+    def stop(self) -> None:
+        self.studio.stop()
+        if self.ftp:
+            self.ftp.stop()
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+
 def serve(port: int = 8711, ftp_port: int | None = None, open_browser: bool = True,
           studio: Studio | None = None) -> None:
-    studio = studio or Studio()
-    ftp = None
-    try:
-        ftp = CameraFTP(studio.inbox, port=ftp_port or int(studio.settings()["ftp_port"]))
-        ftp.start()
-        studio.camera = ftp.status
-    except Exception as exc:  # e.g. port taken: the app still works with tethering
-        log.error("FTP server not started (%s); camera over cable only", exc)
-        ftp = None
-    studio.start()
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(studio, ftp))
-    url = f"http://127.0.0.1:{httpd.server_address[1]}/"
-    log.info("LiveFrame ECS → %s", url)
+    srv = Server(port, ftp_port, studio)
     if open_browser:
-        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+        threading.Timer(0.6, lambda: webbrowser.open(srv.url)).start()
+    t = srv.start_background()
     try:
-        httpd.serve_forever()
+        while t.is_alive():
+            t.join(0.5)
     except KeyboardInterrupt:
         pass
     finally:
-        studio.stop()
-        if ftp:
-            ftp.stop()
-        httpd.server_close()
-
+        srv.stop()

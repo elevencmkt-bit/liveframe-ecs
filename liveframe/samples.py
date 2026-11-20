@@ -8,6 +8,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+from . import tools
+
 
 def write_cube(path: Path, size: int = 17) -> Path:
     """Warm, slightly contrasty look — obviously visible in tests."""
@@ -57,7 +59,7 @@ def write_photo(path: Path, w: int = 4000, h: int = 2667, seed: int = 0,
 
 def write_clip(path: Path, seconds: float = 6, pattern: str = "testsrc2", portrait=False) -> Path:
     size = "1080x1920" if portrait else "1920x1080"
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+    subprocess.run([tools.ffmpeg(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",
                     f"{pattern}=size={size}:rate=30:duration={seconds}",
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", str(path)], check=True)
     return path
@@ -67,7 +69,7 @@ def write_track(path: Path, seconds: float = 70, bpm: float = 120) -> Path:
     """Sine pad + click on every beat; stands in for the licensed track."""
     beat = 60.0 / bpm
     expr = f"0.2*sin(2*PI*220*t)+0.5*sin(2*PI*1000*t)*lt(mod(t\\,{beat})\\,0.03)"
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+    subprocess.run([tools.ffmpeg(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",
                     f"aevalsrc={expr}:s=44100:d={seconds}", "-c:a", "aac", str(path)],
                    check=True)
     return path
