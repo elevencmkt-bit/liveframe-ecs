@@ -74,7 +74,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><b>LiveFrame</b> ECS</div>
+  <div class="brand"><b>LiveFrame</b> ECS <span id="ver" class="muted small" style="letter-spacing:0;text-transform:none;font-weight:500"></span></div>
   <nav><button id="nav-events" class="on">Events</button><button id="nav-settings">Settings</button></nav>
   <div class="pills">
     <span class="pill" id="pill-camera"><i class="dot"></i><span>Camera</span></span>
@@ -105,11 +105,13 @@ async function pollState() {
   try {
     const st = S.state = await api('/api/state');
     const cam = st.camera || {};
+    if (st.version) $('#ver').textContent = 'v' + st.version;
     setPill('#pill-camera', cam.connected ? 'ok' : cam.disabled ? 'bad' : '', cam.connected ? `Camera connected${cam.address ? ' · ' + cam.address : ''}` : cam.disabled ? 'FTP off · use cable' : 'Camera not connected');
     setPill('#pill-net', st.online ? 'ok' : 'bad', st.online ? 'Internet' : 'Offline · queue waits');
     setPill('#pill-active', st.active ? 'ok' : '', st.active ? `Live: ${st.active}` : 'No live event');
   } catch { setPill('#pill-camera', 'bad', 'App stopped'); }
 }
+const assetsDir = () => (S.state?.home || '~/LiveFrame') + '/assets';
 function setPill(sel, cls, text) { const p = $(sel); p.querySelector('.dot').className = 'dot ' + cls; p.querySelector('span').textContent = text; }
 
 // ── routing ───────────────────────────────────────────────────
@@ -166,7 +168,7 @@ async function eventForm(ev) {
       <label class="full hubf"><span>Hub gallery LiveFrame key ${ev?.hub_key ? '(saved in Keychain — paste only to replace)' : ''}</span><input type="password" name="hub_key" autocomplete="off" placeholder="lf_… (Hub → Galleries → the gallery → LiveFrame → Create key)"></label>
       <label class="full drivef"><span>Drive for desktop folder</span><input type="text" name="target" placeholder="~/Library/CloudStorage/GoogleDrive-…/My Drive/LiveFrame/Event"></label>
       <label class="full drivef"><span>Gallery link to send the client</span><input type="text" name="gallery_link" value="${esc(ev?.backend === 'folder' ? ev.gallery_link : '')}" placeholder="https://drive.google.com/drive/folders/…"></label>
-      <p class="full muted small">Files go in <code>~/LiveFrame/assets</code> (LUTs, PNGs, tracks). The key is stored in the Mac's Keychain, never in a file.</p>
+      <p class="full muted small">Files go in <code>${esc(assetsDir())}</code> (LUTs, PNGs, tracks). The key is stored in the Mac's Keychain, never in a file.</p>
       <div class="full row"><span class="err" id="ferr"></span><button type="button" class="btn" id="cancel" style="margin-left:auto">Cancel</button><button class="btn primary">${ev ? 'Save' : 'Create event'}</button></div>
     </form>`;
   const f = $('#ef', dlg);
@@ -332,7 +334,7 @@ function recapDialog(music) {
     <p class="muted small">Uses the clips the camera sent (${S.ev.counters?.videos ?? 0}), the event LUT and signature, cut on the beat. You approve it before it goes anywhere.</p>
     ${job ? `<p class="${job.state === 'error' ? 'err' : 'soft'}">Last recap: ${esc(job.state)}${job.error ? ' — ' + esc(job.error) : ''} ${job.state === 'done' ? `· <a href="/recap/${S.slug}" target="_blank">watch</a>` : ''}</p>` : ''}
     <form class="grid" id="rf">
-      <label class="full"><span>Licensed track (from ~/LiveFrame/assets)</span><select name="music"><option value="">No music (test)</option>${music.map((m) => `<option>${esc(m)}</option>`).join('')}</select></label>
+      <label class="full"><span>Licensed track (from ${esc(assetsDir())})</span><select name="music"><option value="">No music (test)</option>${music.map((m) => `<option>${esc(m)}</option>`).join('')}</select></label>
       <label><span>BPM</span><input type="number" name="bpm" value="120" min="60" max="200"></label>
       <label><span>Length (s)</span><input type="number" name="duration" value="45" min="30" max="60"></label>
       <div class="full row"><button type="button" class="btn" id="x" style="margin-left:auto">Close</button><button class="btn primary">Build recap</button></div>

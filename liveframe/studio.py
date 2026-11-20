@@ -28,7 +28,7 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-from . import hub, notify, pipeline, recap, secrets
+from . import __version__, hub, notify, pipeline, recap, secrets
 from .config import DEFAULT_HUB_URL, ConfigError, Event, load_event
 from .state import Ledger
 
@@ -525,4 +525,5 @@ class Studio:
         cam = self.camera.as_dict() if self.camera else {"connected": False, "disabled": True}
         return {"camera": cam, "online": self.net.online, "active": ev.slug if ev else "",
                 "inbox_waiting": sum(1 for p in self.inbox.rglob("*") if p.is_file() and not p.name.startswith(".")),
-                "settings": self.settings(), "recaps": self.recaps}
+                "settings": self.settings(), "recaps": self.recaps,
+                "version": __version__, "home": str(self.home)}

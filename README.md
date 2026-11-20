@@ -1,6 +1,29 @@
 # LiveFrame ECS
 
-## V2 · app no Mac (padrão)
+## App de Mac (LiveFrame.app) · instalar sem terminal
+
+1. Baixar o **LiveFrame.dmg** do Release mais recente: `https://github.com/elevencmkt-bit/liveframe-ecs/releases/latest/download/LiveFrame.dmg`
+2. Abrir o .dmg e arrastar **LiveFrame** para **Aplicativos**.
+3. Primeira abertura (o app ainda não é assinado pela Apple): abrir o LiveFrame uma vez → aparece o aviso de que o macOS não pode verificar o app → **OK**. Ir em **Ajustes do Sistema → Privacidade e Segurança**, rolar até **Segurança** e clicar **Abrir Mesmo Assim** ao lado de "LiveFrame foi bloqueado…", confirmar com a senha/Touch ID e clicar **Abrir**. Só na primeira vez (e de novo a cada versão nova).
+4. Na primeira abertura o LiveFrame pergunta onde guardar os dados (**Sim** = `~/Library/Application Support/LiveFrame`; **Não** = escolher outra pasta). Para continuar com os eventos da versão de terminal, escolher `~/LiveFrame`. A escolha fica em `~/Library/Application Support/LiveFrame/location.json`.
+5. O macOS pode perguntar se o LiveFrame pode **aceitar conexões de entrada** (FTP da câmera) e **acessar a rede local**: permitir.
+
+O app abre a tela do LiveFrame no navegador e mostra uma janelinha com a **versão**, a pasta de dados e os botões *Open LiveFrame*, *Data folder* e *Log*. Fechar a janela deixa o LiveFrame rodando (clique no ícone do Dock para trazê-la de volta); **⌘Q** encerra (pede confirmação se houver evento ao vivo). A versão também aparece no topo da tela, ao lado de "LiveFrame ECS".
+
+- Tudo vem dentro do .app: Python, Pillow, pyftpdlib e um **ffmpeg próprio** para o recap (não precisa de Homebrew).
+- Dados ficam **fora** do .app (settings, events, work, assets, inbox, logs): atualizar = arrastar o .app novo por cima.
+- Apple Silicon (arm64). Mac Intel: usar a versão de terminal abaixo.
+
+### Gerar uma versão nova
+- Subir o número em `liveframe/__init__.py` (`__version__`) e fazer o merge no `main`: o workflow **Mac app** cria a tag `v<versão>` e o Release com o `LiveFrame.dmg`.
+- Ou criar uma tag `vX.Y.Z` direto: o workflow usa a tag como versão.
+- Em pull requests o workflow só monta e testa; o .dmg fica como artefato da execução.
+- Assinatura/notarização: o workflow já está pronto e liga sozinho quando existirem os secrets `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` (ver o topo de `.github/workflows/mac-app.yml`). Sem eles o app sai com assinatura ad-hoc.
+- Build local (num Mac): `pip install -r requirements.txt -r packaging/requirements-build.txt && python packaging/make_art.py build/art && pyinstaller --noconfirm packaging/LiveFrame.spec && dist/LiveFrame.app/Contents/MacOS/LiveFrame --selftest`.
+
+---
+
+## V2 · app no Mac pelo terminal
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt

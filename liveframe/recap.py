@@ -13,6 +13,8 @@ import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from . import tools
+
 VIDEO_EXT = {".mp4", ".mov", ".mxf", ".m4v"}
 
 
@@ -28,13 +30,10 @@ class Segment:
 
 
 def probe_duration(path: Path) -> float:
-    r = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", str(path)], capture_output=True, text=True)
-    try:
-        return float(r.stdout.strip())
-    except ValueError as exc:
-        raise RecapError(f"cannot read duration of {path.name}") from exc
+    d = tools.media_duration(path)
+    if d is None:
+        raise RecapError(f"cannot read duration of {path.name}")
+    return d
 
 
 def plan(clips: list[tuple[Path, float]], total: float, cut: float) -> list[Segment]:
@@ -81,7 +80,7 @@ def build(clips_dir: Path, out: Path, music: Path | None = None, lut: Path | Non
     cut = 60.0 / bpm * beats_per_cut
     segs = plan([(p, probe_duration(p)) for p in clips], duration, cut)
 
-    cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error"]
+    cmd = [tools.ffmpeg(), "-y", "-hide_banner", "-loglevel", "error"]
     for s in segs:
         cmd += ["-ss", f"{s.start}", "-t", f"{s.length}", "-i", str(clips_dir / s.clip)]
     idx = len(segs)
