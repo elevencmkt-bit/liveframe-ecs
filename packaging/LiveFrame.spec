@@ -1,6 +1,6 @@
 # PyInstaller spec for LiveFrame.app (run from the repo root):
 #     pyinstaller --noconfirm packaging/LiveFrame.spec
-# Needs build/art/LiveFrame.icns (python packaging/make_art.py build/art).
+# Needs build/art/LiveFrame.icns (python packaging/make_art.py build/art); LIVEFRAME_ART=<folder> to use another.
 import os
 import re
 from pathlib import Path
@@ -9,6 +9,7 @@ from PyInstaller.utils.hooks import collect_dynamic_libs
 
 ROOT = Path(SPECPATH).parent
 VERSION = re.search(r'__version__ = "([^"]+)"', (ROOT / "liveframe" / "__init__.py").read_text()).group(1)
+ART = Path(os.environ.get("LIVEFRAME_ART") or ROOT / "build" / "art")
 ARCH = os.environ.get("LIVEFRAME_ARCH") or None   # None = the runner's own (arm64 on macos-14)
 
 # imageio-ffmpeg ships one static ffmpeg in imageio_ffmpeg/binaries; keep it executable (binaries, not data)
@@ -33,7 +34,7 @@ coll = COLLECT(exe, a.binaries, a.datas, name="LiveFrame")
 app = BUNDLE(
     coll,
     name="LiveFrame.app",
-    icon=str(ROOT / "build" / "art" / "LiveFrame.icns"),
+    icon=str(ART / "LiveFrame.icns"),
     bundle_identifier="com.elevencreativestudio.liveframe",
     version=VERSION,
     info_plist={

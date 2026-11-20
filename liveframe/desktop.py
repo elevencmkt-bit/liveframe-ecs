@@ -266,8 +266,9 @@ def selftest() -> int:
         assert got and 29 <= got <= 31, got
         print(f"recap ok ({got:.1f}s, {len(rep['segments'])} cuts)")
 
-        import tkinter  # noqa: F401  (the window needs Tk inside the bundle)
-        print("tk ok")
+        import tkinter  # the window needs Tcl/Tk (and its script library) inside the bundle
+
+        print(f"tk ok (Tcl {tkinter.Tcl().eval('info patchlevel')})")
     print("SELFTEST OK")
     return 0
 

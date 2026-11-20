@@ -1,9 +1,11 @@
-# Builds LiveFrame.app + LiveFrame.dmg on a macOS runner (Apple Silicon).
+# LiveFrame.app + LiveFrame.dmg on a GitHub macOS runner (Apple Silicon) — MANUAL ONLY.
 #
-# - Pull requests and pushes to main: tests + build + self-test; the .dmg is kept as a run artifact.
-# - Version tag (v2.0.0, v2.0.1, ...): the same build, published as LiveFrame.dmg in a GitHub Release.
-# - Push to main whose version (liveframe/__init__.py) has no release yet: creates tag v<version> and the
-#   release, so merging a version bump is enough to publish it.
+# The account has no paid Actions minutes, and macOS runners cost money on a private repo, so the
+# macOS build never starts by itself: the .dmg is built on Levi's Mac with "Montar LiveFrame.command"
+# (double-click in the repo folder). Pull requests and pushes to main only run the Linux tests (free).
+#
+# If macOS minutes are ever enabled: Actions → Mac app → Run workflow. Run it on a tag (v2.0.1, ...)
+# and the .dmg is also published as LiveFrame.dmg in a GitHub Release of that tag.
 #
 # Signing/notarization is optional and switches on by itself when these repository secrets exist:
 #   MACOS_CERT_P12_BASE64, MACOS_CERT_PASSWORD   Developer ID Application certificate (.p12, base64)
@@ -16,7 +18,6 @@ name: Mac app
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -42,6 +43,7 @@ jobs:
           LIVEFRAME_SECRETS: file
 
   build:
+    if: github.event_name == 'workflow_dispatch'   # macOS minutes are paid: never automatic
     runs-on: macos-14   # Apple Silicon (arm64)
     timeout-minutes: 40
     env:
@@ -76,10 +78,6 @@ jobs:
           else
             VERSION=$(python -c 'import re;print(re.search(r"__version__ = \"([^\"]+)\"",open("liveframe/__init__.py").read()).group(1))')
             RELEASE=false
-            if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]] \
-               && ! git rev-parse -q --verify "refs/tags/v${VERSION}" >/dev/null; then
-              RELEASE=true
-            fi
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
