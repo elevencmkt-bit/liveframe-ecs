@@ -7,3 +7,5 @@ events/*.toml
 !events/example.toml
 *.sqlite*
 .DS_Store
+build/
+dist/
